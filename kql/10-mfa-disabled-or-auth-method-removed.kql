@@ -1,0 +1,37 @@
+// Title: MFA disabled or authentication method removed for a user
+// Data source table: AuditLogs
+// What it detects: Microsoft Entra ID audit events showing per-user MFA being disabled or a registered
+//   authentication method (security info) being deleted. Attackers do this after taking over an account
+//   so that future sign-ins are easier, or to lock the real user out of recovery.
+// Likely false positives: Users replacing a lost or upgraded phone; help desk resets during onboarding or
+//   offboarding; planned migration from legacy per-user MFA to Conditional Access or security defaults.
+// MITRE ATT&CK technique: T1556.006 Modify Authentication Process: Multi-Factor Authentication
+// Tuning notes: The OperationName strings below are the ones commonly seen for legacy per-user MFA and
+//   for deleted security info, but names can differ by tenant and over time. Validate them first by
+//   running this on its own:
+//     AuditLogs | where OperationName has_any ("security info", "Strong Authentication") | distinct OperationName
+//   SelfInitiated is true when the user changed their own methods, which is usually routine; an admin
+//   or application changing it, or a change from a new IP shortly after a risky sign-in, is worth a
+//   closer look. Exclude your help desk accounts by InitiatedByUser.
+// Status: Written against the documented AuditLogs schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+let mfaOperations = dynamic([
+    "Disable Strong Authentication",
+    "User deleted security info",
+    "Admin deleted security info"
+]);
+AuditLogs
+| where TimeGenerated > ago(lookback)
+| where OperationName in~ (mfaOperations)
+| where Result =~ "success"
+| extend
+    InitiatedByUser = tostring(InitiatedBy.user.userPrincipalName),
+    InitiatedByApp = tostring(InitiatedBy.app.displayName),
+    InitiatorIP = tostring(InitiatedBy.user.ipAddress),
+    TargetUser = tostring(TargetResources[0].userPrincipalName)
+| extend
+    Initiator = coalesce(InitiatedByUser, InitiatedByApp),
+    SelfInitiated = InitiatedByUser =~ TargetUser
+| project TimeGenerated, OperationName, TargetUser, Initiator, InitiatorIP, SelfInitiated, Category, CorrelationId
+| order by TimeGenerated desc

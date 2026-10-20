@@ -1,0 +1,37 @@
+// Title: Suspicious encoded PowerShell command line
+// Data source table: DeviceProcessEvents
+// What it detects: powershell.exe or pwsh.exe launched with an encoded command (-e, -ec, -enc or
+//   -EncodedCommand followed by a long Base64 string) or with FromBase64String in the command line.
+//   Attackers encode PowerShell to hide intent from simple command-line inspection.
+// Likely false positives: Some management and deployment tools (configuration managers, RMM agents,
+//   installers) legitimately pass encoded commands; developers testing scripts.
+// MITRE ATT&CK technique: T1059.001 Command and Scripting Interpreter: PowerShell, with T1027.010
+//   Obfuscated Files or Information: Command Obfuscation
+// Tuning notes: This table comes from Microsoft Defender for Endpoint. In Sentinel (Defender XDR
+//   connector) the time column is TimeGenerated; in the Defender portal's advanced hunting use Timestamp
+//   instead. Allow-list known tooling by InitiatingProcessFileName or by a hash of the decoded script.
+//   PowerShell encodes -EncodedCommand as UTF-16LE Base64, so decode a sample with
+//   [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($blob)) or CyberChef (From Base64,
+//   then Decode text UTF-16LE) before judging it. Raise severity when the parent is an Office app,
+//   a browser or a script host (see query 09).
+// Status: Written against the documented Defender XDR schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+let shells = dynamic(["powershell.exe", "pwsh.exe", "powershell_ise.exe"]);
+DeviceProcessEvents
+| where TimeGenerated > ago(lookback)
+| where FileName in~ (shells)
+| where ProcessCommandLine matches regex @"(?i)\s-e(c|n[a-z]*)?\s+[A-Za-z0-9+/=]{20,}"
+    or ProcessCommandLine has "FromBase64String"
+| extend EncodedBlob = extract(@"(?i)\s-e(?:c|n[a-z]*)?\s+([A-Za-z0-9+/=]{20,})", 1, ProcessCommandLine)
+| extend EncodedLength = strlen(EncodedBlob)
+| project
+    TimeGenerated,
+    DeviceName,
+    Account = strcat(AccountDomain, "\\", AccountName),
+    FileName,
+    ProcessCommandLine,
+    EncodedLength,
+    ParentProcess = InitiatingProcessFileName,
+    ParentCommandLine = InitiatingProcessCommandLine
+| order by TimeGenerated desc

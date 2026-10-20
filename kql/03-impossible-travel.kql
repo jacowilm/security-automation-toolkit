@@ -1,0 +1,41 @@
+// Title: Impossible travel between two countries
+// Data source table: SigninLogs
+// What it detects: The same user signing in successfully from two different countries within a short
+//   time, which is faster than a person could travel. Suggests a stolen session or credentials in use
+//   from a second location.
+// Likely false positives: VPNs and proxies that exit in another country; mobile carriers with roaming or
+//   centralised gateways; cloud-hosted browsers; users who genuinely hop between a corporate VPN and a
+//   home connection.
+// MITRE ATT&CK technique: T1078.004 Valid Accounts: Cloud Accounts
+// Tuning notes: maxGap sets how close in time two countries must be to alert. Only consecutive
+//   successful sign-ins per user are compared, so a country pair separated by a third sign-in is
+//   judged against its neighbours. Add known VPN and corporate egress ranges to an exclusion watchlist.
+//   Microsoft Entra ID Protection has its own atypical travel risk detection; use this query to
+//   cross-check it or where P2 licensing is not available. The location comes from IP geolocation and
+//   is approximate.
+// Status: Written against the documented SigninLogs schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+let maxGap = 2h;
+SigninLogs
+| where TimeGenerated > ago(lookback)
+| where ResultType == "0"
+| extend Country = tostring(LocationDetails.countryOrRegion),
+         City = tostring(LocationDetails.city)
+| where isnotempty(Country)
+| project TimeGenerated, UserPrincipalName, IPAddress, Country, City, AppDisplayName
+| sort by UserPrincipalName asc, TimeGenerated asc
+| extend PrevUser = prev(UserPrincipalName),
+         PrevTime = prev(TimeGenerated),
+         PrevIP = prev(IPAddress),
+         PrevCountry = prev(Country),
+         PrevCity = prev(City)
+| where PrevUser == UserPrincipalName and PrevCountry != Country
+| extend TimeBetween = TimeGenerated - PrevTime
+| where TimeBetween <= maxGap
+| project
+    UserPrincipalName,
+    FirstSignIn = PrevTime, FirstCountry = PrevCountry, FirstCity = PrevCity, FirstIP = PrevIP,
+    SecondSignIn = TimeGenerated, SecondCountry = Country, SecondCity = City, SecondIP = IPAddress,
+    TimeBetween, AppDisplayName
+| order by SecondSignIn desc

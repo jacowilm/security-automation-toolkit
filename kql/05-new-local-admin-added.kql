@@ -1,0 +1,30 @@
+// Title: Member added to the local Administrators group
+// Data source table: SecurityEvent
+// What it detects: Windows event 4732 (a member was added to a security-enabled local group) where the
+//   group is the built-in Administrators group. Attackers add an account to local administrators to
+//   keep or raise privilege on a host.
+// Likely false positives: IT onboarding and imaging tasks; endpoint management tools that enrol a device
+//   admin group; software installers that add a service account.
+// MITRE ATT&CK technique: T1098 Account Manipulation
+// Tuning notes: The group is matched by its well-known SID S-1-5-32-544 so it works on any OS language.
+//   MemberName is often "-" on newer Windows versions, so MemberSid is the reliable column; resolve it
+//   against a watchlist of known accounts. Exclude expected change-makers (for example your management
+//   service account) by SubjectUserName. Domain-level groups use different events (4728 for global and
+//   4756 for universal groups); add them if you also want Domain Admins coverage.
+// Status: Written against the documented SecurityEvent schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+SecurityEvent
+| where TimeGenerated > ago(lookback)
+| where EventID == 4732
+| where TargetSid == "S-1-5-32-544"
+| project
+    TimeGenerated,
+    Computer,
+    GroupName = TargetUserName,
+    GroupSid = TargetSid,
+    AddedMemberName = MemberName,
+    AddedMemberSid = MemberSid,
+    ChangedBy = strcat(SubjectDomainName, "\\", SubjectUserName),
+    SubjectLogonId
+| order by TimeGenerated desc

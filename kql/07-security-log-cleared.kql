@@ -1,0 +1,25 @@
+// Title: Windows Security event log cleared
+// Data source table: SecurityEvent
+// What it detects: Windows event 1102 (the audit log was cleared). Intruders clear the Security log to
+//   remove evidence of their activity, so any occurrence deserves review.
+// Likely false positives: Administrators clearing logs during troubleshooting or rebuilds; imaging and
+//   decommissioning of lab machines; a log management script run on a schedule.
+// MITRE ATT&CK technique: T1070.001 Indicator Removal: Clear Windows Event Logs
+// Tuning notes: Keep this at a very low threshold: there are few legitimate reasons and the event is
+//   cheap. Event 1102 names who cleared the log in SubjectUserName and SubjectDomainName. Clearing the
+//   System log is a separate event (104, source Microsoft-Windows-Eventlog) in the Event table; add a
+//   second query for it if you collect that log. Because the log is cleared, rely on the copy already
+//   forwarded to Sentinel rather than the host.
+// Status: Written against the documented SecurityEvent schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+SecurityEvent
+| where TimeGenerated > ago(lookback)
+| where EventID == 1102
+| project
+    TimeGenerated,
+    Computer,
+    ClearedBy = strcat(SubjectDomainName, "\\", SubjectUserName),
+    SubjectLogonId,
+    Activity
+| order by TimeGenerated desc
