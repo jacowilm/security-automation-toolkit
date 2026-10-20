@@ -1,0 +1,35 @@
+// Title: Successful sign-in after many failures from the same IP
+// Data source table: SigninLogs
+// What it detects: An account signing in successfully from an IP address that has just failed many
+//   times against the same account. This is the point where password guessing may have worked, so it is
+//   the highest priority outcome of queries 01 and 02.
+// Likely false positives: A user who forgot their password, tried repeatedly, then remembered it; a
+//   scripted job that retried until a transient error cleared; a locked-out user who waited out the
+//   lockout.
+// MITRE ATT&CK technique: T1110 Brute Force leading to T1078.004 Valid Accounts: Cloud Accounts
+// Tuning notes: minFailures and binSize control sensitivity. Buckets are tumbling, so failures and the
+//   success must land in the same bucket; widen binSize or run overlapping scheduled queries to cover
+//   edges. Treat a hit as a possible compromise: check the account's MFA result, the app used and
+//   subsequent AuditLogs activity. Failures use ResultType 50126 (bad password) and 50053 (locked).
+// Status: Written against the documented SigninLogs schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+let binSize = 30m;
+let minFailures = 10;
+let failureCodes = dynamic(["50126", "50053"]);
+SigninLogs
+| where TimeGenerated > ago(lookback)
+| where ResultType == "0" or ResultType in (failureCodes)
+| extend Outcome = iff(ResultType == "0", "Success", "Failure")
+| summarize
+    Failures = countif(Outcome == "Failure"),
+    Successes = countif(Outcome == "Success"),
+    FirstFailure = minif(TimeGenerated, Outcome == "Failure"),
+    LastFailure = maxif(TimeGenerated, Outcome == "Failure"),
+    FirstSuccess = minif(TimeGenerated, Outcome == "Success"),
+    SuccessApps = make_set_if(AppDisplayName, Outcome == "Success", 5)
+    by UserPrincipalName, IPAddress, TimeBucket = bin(TimeGenerated, binSize)
+| where Failures >= minFailures and Successes > 0
+| where FirstSuccess > FirstFailure
+| project TimeBucket, UserPrincipalName, IPAddress, Failures, FirstFailure, LastFailure, FirstSuccess, SuccessApps
+| order by FirstSuccess desc
