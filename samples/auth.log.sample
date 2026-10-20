@@ -1,0 +1,108 @@
+# SYNTHETIC SAMPLE DATA for security-automation-toolkit. This is not a real log.
+# Hostnames, usernames and ports are made up. Addresses come from the documentation ranges
+# RFC 5737 (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24) and RFC 3849 (2001:db8::/32).
+# Syslog timestamps carry no year; the analyser assumes the current year unless --year is given.
+# The final line is deliberately truncated to demonstrate malformed-line handling.
+Oct 20 06:00:01 synthetic-host sshd[811]: Server listening on 0.0.0.0 port 22.
+Oct 20 06:00:01 synthetic-host sshd[811]: Server listening on :: port 22.
+Oct 20 06:30:01 synthetic-host CRON[2201]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Oct 20 06:30:02 synthetic-host CRON[2201]: pam_unix(cron:session): session closed for user root
+Oct 20 07:55:12 synthetic-host sshd[2310]: Accepted publickey for alice from 198.51.100.23 port 55064 ssh2
+Oct 20 07:55:12 synthetic-host sshd[2310]: pam_unix(sshd:session): session opened for user alice(uid=1001) by (uid=0)
+Oct 20 08:20:44 synthetic-host sshd[2310]: Received disconnect from 198.51.100.23 port 55064:11: disconnected by user
+Oct 20 08:20:44 synthetic-host sshd[2310]: Disconnected from user alice 198.51.100.23 port 55064
+Oct 20 08:20:44 synthetic-host sshd[2310]: pam_unix(sshd:session): session closed for user alice
+Oct 20 08:40:03 synthetic-host sshd[2388]: Failed password for bob from 198.51.100.77 port 61359 ssh2
+Oct 20 08:40:10 synthetic-host sshd[2388]: Failed password for bob from 198.51.100.77 port 50280 ssh2
+Oct 20 08:40:21 synthetic-host sshd[2388]: Accepted password for bob from 198.51.100.77 port 46967 ssh2
+Oct 20 08:40:21 synthetic-host sshd[2388]: pam_unix(sshd:session): session opened for user bob(uid=1002) by (uid=0)
+Oct 20 09:05:10 synthetic-host sshd[2500]: Failed password for root from 203.0.113.77 port 55773 ssh2
+Oct 20 09:30:01 synthetic-host CRON[2610]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Oct 20 09:30:02 synthetic-host CRON[2610]: pam_unix(cron:session): session closed for user root
+Oct 20 09:45:12 synthetic-host sshd[2501]: Failed password for root from 203.0.113.77 port 42043 ssh2
+Oct 20 10:02:19 synthetic-host sshd[2655]: Accepted publickey for carol from 198.51.100.40 port 41049 ssh2
+Oct 20 10:02:19 synthetic-host sshd[2655]: pam_unix(sshd:session): session opened for user carol(uid=1003) by (uid=0)
+Oct 20 10:02:20 synthetic-host systemd-logind[702]: New session 41 of user carol.
+Oct 20 10:25:09 synthetic-host sshd[2502]: Failed password for root from 203.0.113.77 port 61323 ssh2
+Oct 20 10:44:50 synthetic-host sudo[2701]: carol : TTY=pts/0 ; PWD=/home/carol ; USER=root ; COMMAND=/usr/bin/apt update
+Oct 20 11:05:11 synthetic-host sshd[2503]: Failed password for root from 203.0.113.77 port 56226 ssh2
+Oct 20 11:20:05 synthetic-host sshd[2790]: Invalid user guest from 2001:db8::bad:1 port 50569
+Oct 20 11:20:06 synthetic-host sshd[2790]: Failed password for invalid user guest from 2001:db8::bad:1 port 56657 ssh2
+Oct 20 11:20:46 synthetic-host sshd[2791]: Invalid user guest from 2001:db8::bad:1 port 46671
+Oct 20 11:20:47 synthetic-host sshd[2791]: Failed password for invalid user guest from 2001:db8::bad:1 port 42146 ssh2
+Oct 20 11:21:40 synthetic-host sshd[2792]: Invalid user guest from 2001:db8::bad:1 port 48066
+Oct 20 11:21:41 synthetic-host sshd[2792]: Failed password for invalid user guest from 2001:db8::bad:1 port 53993 ssh2
+Oct 20 11:45:08 synthetic-host sshd[2504]: Failed password for root from 203.0.113.77 port 42682 ssh2
+Oct 20 11:58:30 synthetic-host sshd[2850]: Accepted publickey for alice from 2001:db8:100::25 port 42958 ssh2
+Oct 20 11:58:30 synthetic-host sshd[2850]: pam_unix(sshd:session): session opened for user alice(uid=1001) by (uid=0)
+Oct 20 12:25:10 synthetic-host sshd[2505]: Failed password for root from 203.0.113.77 port 44850 ssh2
+Oct 20 13:12:00 synthetic-host sshd[3001]: Failed password for root from 203.0.113.50 port 58237 ssh2
+Oct 20 13:12:06 synthetic-host sshd[3002]: Failed password for root from 203.0.113.50 port 60638 ssh2
+Oct 20 13:12:15 synthetic-host sshd[3003]: Failed password for root from 203.0.113.50 port 47001 ssh2
+Oct 20 13:12:21 synthetic-host sshd[3004]: Failed password for root from 203.0.113.50 port 41654 ssh2
+Oct 20 13:12:26 synthetic-host sshd[3104]: Invalid user admin from 203.0.113.50 port 45184
+Oct 20 13:12:27 synthetic-host sshd[3104]: Failed password for invalid user admin from 203.0.113.50 port 45184 ssh2
+Oct 20 13:12:31 synthetic-host sshd[3005]: Failed password for root from 203.0.113.50 port 48828 ssh2
+Oct 20 13:12:39 synthetic-host sshd[3006]: Failed password for root from 203.0.113.50 port 53336 ssh2
+Oct 20 13:12:46 synthetic-host sshd[3007]: Failed password for root from 203.0.113.50 port 46759 ssh2
+Oct 20 13:12:54 synthetic-host sshd[3008]: Failed password for root from 203.0.113.50 port 42969 ssh2
+Oct 20 13:13:01 synthetic-host sshd[3108]: Invalid user admin from 203.0.113.50 port 46695
+Oct 20 13:13:02 synthetic-host sshd[3108]: Failed password for invalid user admin from 203.0.113.50 port 46695 ssh2
+Oct 20 13:13:06 synthetic-host sshd[3009]: Failed password for root from 203.0.113.50 port 59025 ssh2
+Oct 20 13:13:15 synthetic-host sshd[3010]: Failed password for root from 203.0.113.50 port 41616 ssh2
+Oct 20 13:13:24 synthetic-host sshd[3011]: Failed password for root from 203.0.113.50 port 46780 ssh2
+Oct 20 13:13:32 synthetic-host sshd[3012]: Failed password for root from 203.0.113.50 port 47066 ssh2
+Oct 20 13:13:40 synthetic-host sshd[3112]: Invalid user admin from 203.0.113.50 port 50509
+Oct 20 13:13:41 synthetic-host sshd[3112]: Failed password for invalid user admin from 203.0.113.50 port 50509 ssh2
+Oct 20 13:13:46 synthetic-host sshd[3013]: Failed password for root from 203.0.113.50 port 50210 ssh2
+Oct 20 13:13:55 synthetic-host sshd[3014]: Failed password for root from 203.0.113.50 port 59810 ssh2
+Oct 20 13:14:01 synthetic-host sshd[3015]: Failed password for root from 203.0.113.50 port 43040 ssh2
+Oct 20 13:14:06 synthetic-host sshd[3016]: Failed password for root from 203.0.113.50 port 52020 ssh2
+Oct 20 13:14:11 synthetic-host sshd[3116]: Invalid user admin from 203.0.113.50 port 46283
+Oct 20 13:14:12 synthetic-host sshd[3116]: Failed password for invalid user admin from 203.0.113.50 port 46283 ssh2
+Oct 20 13:14:16 synthetic-host sshd[3017]: Failed password for root from 203.0.113.50 port 53019 ssh2
+Oct 20 13:14:22 synthetic-host sshd[3018]: Failed password for root from 203.0.113.50 port 40215 ssh2
+Oct 20 13:14:31 synthetic-host sshd[3019]: Failed password for root from 203.0.113.50 port 53176 ssh2
+Oct 20 13:14:40 synthetic-host sshd[3020]: Failed password for root from 203.0.113.50 port 60862 ssh2
+Oct 20 13:14:49 synthetic-host sshd[3120]: Invalid user admin from 203.0.113.50 port 53170
+Oct 20 13:14:50 synthetic-host sshd[3120]: Failed password for invalid user admin from 203.0.113.50 port 53170 ssh2
+Oct 20 13:14:58 synthetic-host sshd[3021]: Failed password for root from 203.0.113.50 port 44246 ssh2
+Oct 20 13:16:40 synthetic-host sshd[3200]: Disconnecting authenticating user root 203.0.113.50 port 51822: Too many authentication failures [preauth]
+Oct 20 14:03:20 synthetic-host sshd[3400]: Invalid user admin from 203.0.113.99 port 53101
+Oct 20 14:03:21 synthetic-host sshd[3400]: Failed password for invalid user admin from 203.0.113.99 port 53101 ssh2
+Oct 20 14:04:02 synthetic-host sshd[3401]: Invalid user test from 203.0.113.99 port 46860
+Oct 20 14:04:03 synthetic-host sshd[3401]: Failed password for invalid user test from 203.0.113.99 port 46860 ssh2
+Oct 20 14:04:37 synthetic-host sshd[3402]: Invalid user oracle from 203.0.113.99 port 49224
+Oct 20 14:04:38 synthetic-host sshd[3402]: Failed password for invalid user oracle from 203.0.113.99 port 49224 ssh2
+Oct 20 14:05:22 synthetic-host sshd[3403]: Invalid user ubuntu from 203.0.113.99 port 51689
+Oct 20 14:05:23 synthetic-host sshd[3403]: Failed password for invalid user ubuntu from 203.0.113.99 port 51689 ssh2
+Oct 20 14:06:06 synthetic-host sshd[3404]: Invalid user postgres from 203.0.113.99 port 53818
+Oct 20 14:06:07 synthetic-host sshd[3404]: Failed password for invalid user postgres from 203.0.113.99 port 53818 ssh2
+Oct 20 14:06:51 synthetic-host sshd[3405]: Failed password for deploy from 203.0.113.99 port 54570 ssh2
+Oct 20 14:07:27 synthetic-host sshd[3406]: Invalid user guest from 203.0.113.99 port 47095
+Oct 20 14:07:28 synthetic-host sshd[3406]: Failed password for invalid user guest from 203.0.113.99 port 47095 ssh2
+Oct 20 14:07:57 synthetic-host sshd[3407]: Invalid user support from 203.0.113.99 port 40585
+Oct 20 14:07:58 synthetic-host sshd[3407]: Failed password for invalid user support from 203.0.113.99 port 40585 ssh2
+Oct 20 14:40:01 synthetic-host CRON[3510]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Oct 20 14:40:02 synthetic-host CRON[3510]: pam_unix(cron:session): session closed for user root
+Oct 20 14:52:31 synthetic-host sshd[3544]: Connection closed by 198.51.100.40 port 42092 [preauth]
+Oct 20 15:01:08 synthetic-host sshd[3580]: Accepted publickey for svc-backup from 192.0.2.15 port 60971 ssh2
+Oct 20 15:01:08 synthetic-host sshd[3580]: pam_unix(sshd:session): session opened for user svc-backup(uid=998) by (uid=0)
+Oct 20 15:03:55 synthetic-host sshd[3580]: pam_unix(sshd:session): session closed for user svc-backup
+Oct 20 15:20:10 synthetic-host sshd[3700]: Failed password for erin from 198.51.100.150 port 57911 ssh2
+Oct 20 15:20:43 synthetic-host sshd[3701]: Failed password for erin from 198.51.100.150 port 44752 ssh2
+Oct 20 15:21:21 synthetic-host sshd[3702]: Failed password for erin from 198.51.100.150 port 51378 ssh2
+Oct 20 15:21:48 synthetic-host sshd[3703]: Failed password for erin from 198.51.100.150 port 41626 ssh2
+Oct 20 15:22:14 synthetic-host sshd[3704]: Failed password for erin from 198.51.100.150 port 60818 ssh2
+Oct 20 15:22:52 synthetic-host sshd[3705]: Failed password for erin from 198.51.100.150 port 60761 ssh2
+Oct 20 15:23:19 synthetic-host sshd[3706]: Failed password for erin from 198.51.100.150 port 55201 ssh2
+Oct 20 15:24:12 synthetic-host sshd[3720]: Accepted password for erin from 198.51.100.150 port 56180 ssh2
+Oct 20 15:24:12 synthetic-host sshd[3720]: pam_unix(sshd:session): session opened for user erin(uid=1004) by (uid=0)
+Oct 20 16:15:09 synthetic-host sshd[3900]: Accepted publickey for alice from 198.51.100.23 port 58694 ssh2
+Oct 20 16:15:09 synthetic-host sshd[3900]: pam_unix(sshd:session): session opened for user alice(uid=1001) by (uid=0)
+Oct 20 16:48:12 synthetic-host sshd[3900]: pam_unix(sshd:session): session closed for user alice
+Oct 20 17:00:01 synthetic-host CRON[3950]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+Oct 20 17:00:02 synthetic-host CRON[3950]: pam_unix(cron:session): session closed for user root
+Oct 20 17:25:44 synthetic-host sshd[4010]: Failed password for bob from 198.51.100.77 port 45307 ssh2
+Oct 20 17:25:52 synthetic-host sshd[4010]: Accepted password for bob from 198.51.100.77 port 49432 ssh2
+Oct 20 17:30:1
