@@ -9,8 +9,8 @@ dist/
 htmlcov/
 
 # Virtual environments
-.venv/
-venv/
+.venv*/
+venv*/
 env/
 
 # Secrets and key material (never commit these)
