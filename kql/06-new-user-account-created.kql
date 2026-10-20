@@ -1,0 +1,28 @@
+// Title: New local or domain user account created
+// Data source table: SecurityEvent
+// What it detects: Windows event 4720 (a user account was created). Newly created accounts are a common
+//   persistence step after an intruder gains admin rights.
+// Likely false positives: Normal joiner processes; helpdesk creating accounts; automated provisioning
+//   from an identity system; temporary accounts for contractors or testing.
+// MITRE ATT&CK technique: T1136.001 Create Account: Local Account (T1136.002 Domain Account when the
+//   event comes from a domain controller)
+// Tuning notes: Exclude your provisioning service account and expected HR-driven creation times by
+//   SubjectUserName. Alert harder when the creator is not a member of your admin teams, when creation
+//   happens outside business hours, or when the new account is added to Administrators within minutes
+//   (join with query 05 on the new account's SID). On a domain controller the new account appears in
+//   TargetUserName and TargetDomainName; on a workstation TargetDomainName is the machine name.
+// Status: Written against the documented SecurityEvent schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+SecurityEvent
+| where TimeGenerated > ago(lookback)
+| where EventID == 4720
+| project
+    TimeGenerated,
+    Computer,
+    NewAccount = TargetUserName,
+    NewAccountDomain = TargetDomainName,
+    NewAccountSid = TargetSid,
+    CreatedBy = strcat(SubjectDomainName, "\\", SubjectUserName),
+    SubjectLogonId
+| order by TimeGenerated desc
