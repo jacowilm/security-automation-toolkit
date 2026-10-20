@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "security-automation-toolkit"
+version = "0.1.0"
+description = "SSH auth.log analyser, Windows event exporter and KQL detections (learning project)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Jacobo Miranda Baudot" }]
+dependencies = []
+
+[project.scripts]
+authlog-analyzer = "authlog_analyzer.cli:main"
+
+[tool.setuptools]
+packages = ["authlog_analyzer"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
