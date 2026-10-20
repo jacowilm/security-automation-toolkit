@@ -7,11 +7,12 @@
 //   offboarding; planned migration from legacy per-user MFA to Conditional Access or security defaults.
 // MITRE ATT&CK technique: T1556.006 Modify Authentication Process: Multi-Factor Authentication
 // Tuning notes: The OperationName strings below are the ones commonly seen for legacy per-user MFA and
-//   for deleted security info, but names can differ by tenant and over time. Validate them first with:
-//   AuditLogs | where OperationName has_any ("security info", "Strong Authentication") | distinct
-//   OperationName. SelfInitiated is true when the user changed their own methods, which is usually
-//   routine; an admin or application changing it, or a change from a new IP shortly after a risky
-//   sign-in, is worth a closer look. Exclude your help desk accounts by InitiatedByUser.
+//   for deleted security info, but names can differ by tenant and over time. Validate them first by
+//   running this on its own:
+//     AuditLogs | where OperationName has_any ("security info", "Strong Authentication") | distinct OperationName
+//   SelfInitiated is true when the user changed their own methods, which is usually routine; an admin
+//   or application changing it, or a change from a new IP shortly after a risky sign-in, is worth a
+//   closer look. Exclude your help desk accounts by InitiatedByUser.
 // Status: Written against the documented AuditLogs schema. Not yet run in a live Sentinel workspace.
 
 let lookback = 1d;
