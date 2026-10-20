@@ -1,0 +1,33 @@
+// Title: Failed sign-in brute force against one account
+// Data source table: SigninLogs
+// What it detects: Many failed sign-ins (wrong password or smart lockout) for the same account from the
+//   same IP address inside one time bucket. This is the cloud equivalent of password guessing against a
+//   single user.
+// Likely false positives: A phone or mail client retrying with a stale saved password; a service or
+//   automation account whose secret expired; a shared NAT or corporate egress IP where several people
+//   mistype at once.
+// MITRE ATT&CK technique: T1110.001 Brute Force: Password Guessing
+// Tuning notes: Set failureThreshold from your tenant baseline. Buckets are tumbling, so a burst that
+//   straddles a bucket edge can be split in two; as a scheduled analytics rule use a 10 minute frequency
+//   and a 20 minute lookback. Exclude known egress IPs with a watchlist. ResultType 50126 means invalid
+//   username or password, 50053 means the account is locked (smart lockout). SigninLogs holds interactive
+//   sign-ins only; non-interactive ones are in AADNonInteractiveUserSignInLogs.
+// Status: Written against the documented SigninLogs schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+let binSize = 10m;
+let failureThreshold = 10;
+let failureCodes = dynamic(["50126", "50053"]);
+SigninLogs
+| where TimeGenerated > ago(lookback)
+| where ResultType in (failureCodes)
+| summarize
+    FailedAttempts = count(),
+    FirstSeen = min(TimeGenerated),
+    LastSeen = max(TimeGenerated),
+    Apps = make_set(AppDisplayName, 10),
+    Countries = make_set(tostring(LocationDetails.countryOrRegion), 5)
+    by UserPrincipalName, IPAddress, TimeBucket = bin(TimeGenerated, binSize)
+| where FailedAttempts >= failureThreshold
+| project TimeBucket, UserPrincipalName, IPAddress, FailedAttempts, FirstSeen, LastSeen, Apps, Countries
+| order by FailedAttempts desc
