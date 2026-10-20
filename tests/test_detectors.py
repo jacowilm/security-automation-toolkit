@@ -9,6 +9,7 @@ from authlog_analyzer.detectors import (
     detect_all,
     detect_brute_force,
     detect_password_spraying,
+    detect_success_after_failures,
 )
 from authlog_analyzer.models import AuthEvent, EventKind
 from tests.helpers import accepted, at, failed
@@ -239,3 +240,96 @@ def test_a_sprayer_is_reported_by_both_spray_and_brute_force_rules():
 def test_two_spray_episodes_far_apart():
     events = spray(ATTACKER, USERS[:5]) + spray(ATTACKER, USERS[:5], start=7200)
     assert len(detect_password_spraying(events)) == 2
+
+
+# ------------------------------------------------ success after failures
+
+def test_success_after_threshold_failures_is_high_priority():
+    events = burst(ATTACKER, 5, user="alice") + [accepted(ATTACKER, "alice", seconds=60)]
+    findings = detect_success_after_failures(events)
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.rule_id == "AUTH-SUCCESS-001"
+    assert f.severity == "high"
+    assert f.technique_id == "T1078"
+    assert f.source_ip == ATTACKER
+    assert f.count == 5
+    assert f.first_seen == at(0)
+    assert f.last_seen == at(60)
+    assert f.usernames == ("alice",)
+    assert "Possible compromise" in f.detail
+
+
+def test_success_one_below_threshold_is_not_flagged():
+    events = burst(ATTACKER, 4) + [accepted(ATTACKER, seconds=60)]
+    assert detect_success_after_failures(events) == []
+
+
+def test_success_with_failures_outside_lookback_is_not_flagged():
+    # Five failures, then a login 10 minutes and 1 second after the last one,
+    # but the earliest failures have also aged out.
+    events = burst(ATTACKER, 5) + [accepted(ATTACKER, seconds=40 + 601)]
+    assert detect_success_after_failures(events) == []
+
+
+def test_success_lookback_boundary_is_inclusive():
+    # The oldest failure is exactly 10 minutes before the login: still counted.
+    events = [failed(ATTACKER, seconds=s) for s in (0, 1, 2, 3, 4)]
+    login_inside = events + [accepted(ATTACKER, seconds=600)]
+    login_outside = events + [accepted(ATTACKER, seconds=601)]
+    assert len(detect_success_after_failures(login_inside)) == 1
+    assert detect_success_after_failures(login_outside) == []
+
+
+def test_failures_after_the_login_do_not_count():
+    events = [accepted(ATTACKER, seconds=0)] + burst(ATTACKER, 6, start=1)
+    assert detect_success_after_failures(events) == []
+
+
+def test_success_from_a_different_ip_is_not_flagged():
+    events = burst(ATTACKER, 8) + [accepted(OTHER, seconds=30)]
+    assert detect_success_after_failures(events) == []
+
+
+def test_success_after_failures_against_other_accounts_still_flags_the_ip():
+    events = spray(ATTACKER, USERS[:6], step_seconds=10) + [accepted(ATTACKER, "alice", seconds=90)]
+    f = detect_success_after_failures(events)[0]
+    assert "alice" in f.usernames
+    assert set(USERS[:6]) <= set(f.usernames)
+    assert "0 against the same account" in f.detail
+
+
+def test_each_qualifying_login_is_its_own_finding():
+    events = burst(ATTACKER, 5) + [accepted(ATTACKER, seconds=60), accepted(ATTACKER, seconds=90)]
+    assert len(detect_success_after_failures(events)) == 2
+
+
+def test_login_at_same_timestamp_before_failures_in_file_order_is_not_flagged():
+    # File order breaks timestamp ties: the Accepted line came first.
+    events = [accepted(ATTACKER, seconds=0)] + burst(ATTACKER, 5, step_seconds=0)
+    assert detect_success_after_failures(events) == []
+
+
+def test_success_custom_threshold_and_window():
+    events = burst(ATTACKER, 2) + [accepted(ATTACKER, seconds=30)]
+    assert detect_success_after_failures(events) == []
+    assert len(detect_success_after_failures(events, DetectionConfig(threshold=2))) == 1
+
+
+def test_success_detection_ignores_invalid_user_events():
+    noise = [AuthEvent(at(i), EventKind.INVALID_USER, "x", ATTACKER) for i in range(10)]
+    assert detect_success_after_failures(noise + [accepted(ATTACKER, seconds=20)]) == []
+
+
+def test_detect_all_sorts_high_severity_first():
+    events = (
+        burst(OTHER, 6, start=0)  # medium brute force
+        + burst(ATTACKER, 5, user="alice", start=3600)
+        + [accepted(ATTACKER, "alice", seconds=3700)]
+    )
+    findings = detect_all(events)
+    assert findings[0].severity == "high"
+    assert findings[0].rule_id == "AUTH-SUCCESS-001"
+    assert [f.severity for f in findings] == sorted(
+        (f.severity for f in findings), key=["high", "medium", "low"].index
+    )

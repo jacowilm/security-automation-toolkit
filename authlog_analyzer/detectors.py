@@ -8,7 +8,7 @@ are not. Events may arrive in any order, they are sorted by timestamp first
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Iterable
@@ -17,6 +17,7 @@ from .models import (
     BRUTE_FORCE,
     PASSWORD_SPRAY,
     SEVERITIES,
+    SUCCESS_AFTER_FAILURES,
     AuthEvent,
     EventKind,
     Finding,
@@ -171,11 +172,66 @@ def detect_password_spraying(events: Iterable[AuthEvent], config: DetectionConfi
     return findings
 
 
+def detect_success_after_failures(
+    events: Iterable[AuthEvent], config: DetectionConfig | None = None
+) -> list[Finding]:
+    """AUTH-SUCCESS-001: an Accepted login from an IP with enough recent failures.
+
+    "Recent" means within ``window_minutes`` before the login (inclusive), and
+    "enough" means at least ``threshold`` failures from the same source IP,
+    whatever account they targeted. One finding per qualifying login. Always
+    high severity: the attacker may have guessed a working credential.
+    """
+    config = config or DetectionConfig()
+    recent: dict[str, deque[AuthEvent]] = defaultdict(deque)
+    findings: list[Finding] = []
+    for event in sorted(events, key=lambda e: e.timestamp):
+        if event.kind not in (EventKind.FAILED, EventKind.ACCEPTED):
+            continue
+        queue = recent[event.source_ip]
+        # Events are processed in time order, so anything older than the
+        # window now is older than the window for every later event too.
+        while queue and event.timestamp - queue[0].timestamp > config.window:
+            queue.popleft()
+        if event.kind is EventKind.FAILED:
+            queue.append(event)
+            continue
+        if len(queue) < config.threshold:
+            continue
+        same_account = sum(1 for f in queue if f.username == event.username)
+        names = tuple(sorted({f.username for f in queue} | {event.username}))
+        findings.append(
+            Finding(
+                rule_id=SUCCESS_AFTER_FAILURES.rule_id,
+                rule_name=SUCCESS_AFTER_FAILURES.name,
+                severity="high",
+                source_ip=event.source_ip,
+                usernames=names,
+                first_seen=queue[0].timestamp,
+                last_seen=event.timestamp,
+                count=len(queue),
+                technique_id=SUCCESS_AFTER_FAILURES.technique_id,
+                technique_name=SUCCESS_AFTER_FAILURES.technique_name,
+                detail=(
+                    f"Accepted {event.method or 'login'} for '{event.username}' from "
+                    f"{event.source_ip} after {_plural(len(queue), 'failed login')} from the "
+                    f"same address in the previous {config.window_minutes:g} minutes "
+                    f"({same_account} against the same account). Possible compromise."
+                ),
+            )
+        )
+    return findings
+
+
 def detect_all(events: Iterable[AuthEvent], config: DetectionConfig | None = None) -> list[Finding]:
     """Run every rule and return findings sorted by severity, then time."""
     config = config or DetectionConfig()
     events = list(events)
-    findings = detect_brute_force(events, config) + detect_password_spraying(events, config)
+    findings = (
+        detect_brute_force(events, config)
+        + detect_password_spraying(events, config)
+        + detect_success_after_failures(events, config)
+    )
     order = {name: rank for rank, name in enumerate(SEVERITIES)}
     findings.sort(key=lambda f: (order[f.severity], f.first_seen, f.rule_id, f.source_ip))
     return findings
