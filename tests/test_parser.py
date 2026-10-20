@@ -147,6 +147,7 @@ def test_valid_syslog_but_untracked_lines_return_none(line):
         "Oct 20 12:00:00 host sshd[1]: Failed password for",
         "Oct 20 12:00:00 host sshd[1]: Accepted publickey for alice",
         "Oct 20 12:00:00 host sshd[1]: Invalid user admin from not-an-ip",
+        "Oct 20 12:00:00 host sshd[1]: Invalid user",
         "\x00\x01\x02 binary junk",
     ],
 )
