@@ -1,0 +1,32 @@
+// Title: Office application spawning a command shell or script host
+// Data source table: DeviceProcessEvents
+// What it detects: Word, Excel, PowerPoint or Outlook starting cmd.exe, PowerShell, a Windows Script
+//   Host process or mshta.exe. Malicious documents (macros, DDE, embedded objects) commonly use this
+//   parent and child pair to run the first stage of an attack after a user opens an attachment.
+// Likely false positives: Legitimate macros and add-ins that shell out, such as finance workbooks or
+//   document automation; some enterprise plug-ins; IT-authored templates.
+// MITRE ATT&CK technique: T1204.002 User Execution: Malicious File (delivered via T1566.001 Phishing:
+//   Spearphishing Attachment), executing through T1059.001 PowerShell or T1059.003 Windows Command Shell
+// Tuning notes: This table comes from Microsoft Defender for Endpoint. In Sentinel (Defender XDR
+//   connector) the time column is TimeGenerated; in the Defender portal's advanced hunting use Timestamp
+//   instead. Build an exclusion list from the InitiatingProcessCommandLine of known-good macros after a
+//   baseline period. Consider also enabling the Attack Surface Reduction rule that blocks Office
+//   applications from creating child processes, then use this query to find what it would have blocked.
+// Status: Written against the documented Defender XDR schema. Not yet run in a live Sentinel workspace.
+
+let lookback = 1d;
+let officeApps = dynamic(["winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe"]);
+let shells = dynamic(["cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe"]);
+DeviceProcessEvents
+| where TimeGenerated > ago(lookback)
+| where InitiatingProcessFileName in~ (officeApps)
+| where FileName in~ (shells)
+| project
+    TimeGenerated,
+    DeviceName,
+    Account = strcat(AccountDomain, "\\", AccountName),
+    ParentProcess = InitiatingProcessFileName,
+    ParentCommandLine = InitiatingProcessCommandLine,
+    ChildProcess = FileName,
+    ChildCommandLine = ProcessCommandLine
+| order by TimeGenerated desc
