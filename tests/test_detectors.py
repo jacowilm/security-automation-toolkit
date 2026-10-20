@@ -4,9 +4,11 @@ import pytest
 
 from authlog_analyzer.detectors import (
     BRUTE_FORCE_HIGH_FACTOR,
+    SPRAY_HIGH_FACTOR,
     DetectionConfig,
     detect_all,
     detect_brute_force,
+    detect_password_spraying,
 )
 from authlog_analyzer.models import AuthEvent, EventKind
 from tests.helpers import accepted, at, failed
@@ -160,3 +162,80 @@ def test_windows_that_overlap_on_a_shared_failure_merge_into_one_episode():
     findings = detect_brute_force(events, cfg)
     assert len(findings) == 1
     assert findings[0].count == 5
+
+
+# ------------------------------------------------------ password spraying
+
+def spray(ip, users, step_seconds=30, start=0):
+    return [failed(ip, u, seconds=start + i * step_seconds) for i, u in enumerate(users)]
+
+
+USERS = ["admin", "test", "oracle", "ubuntu", "postgres", "deploy", "guest", "support"]
+
+
+def test_spray_exactly_k_distinct_users_is_a_finding():
+    findings = detect_password_spraying(spray(ATTACKER, USERS[:5]))
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.rule_id == "AUTH-SPRAY-001"
+    assert f.technique_id == "T1110.003"
+    assert f.usernames == tuple(sorted(USERS[:5]))
+    assert f.count == 5
+    assert f.severity == "medium"
+
+
+def test_spray_one_below_k_is_not_a_finding():
+    assert detect_password_spraying(spray(ATTACKER, USERS[:4])) == []
+
+
+def test_many_failures_against_few_users_is_brute_force_not_spray():
+    events = burst(ATTACKER, 30, user="root") + burst(ATTACKER, 30, user="admin", start=1)
+    assert detect_password_spraying(events) == []
+    assert len(detect_brute_force(events)) == 1
+
+
+def test_spray_users_outside_the_window_do_not_count():
+    # Five distinct users but spread over 40 minutes: no 10 minute window has 5.
+    events = [failed(ATTACKER, u, minutes=10 * i) for i, u in enumerate(USERS[:5])]
+    assert detect_password_spraying(events) == []
+
+
+def test_spray_window_boundary_is_inclusive():
+    inside = [failed(ATTACKER, u, minutes=m) for u, m in zip(USERS[:5], (0, 2, 4, 6, 10))]
+    outside = [failed(ATTACKER, u, seconds=s) for u, s in zip(USERS[:5], (0, 120, 240, 360, 601))]
+    assert len(detect_password_spraying(inside)) == 1
+    assert detect_password_spraying(outside) == []
+
+
+def test_spray_is_counted_per_source_ip():
+    events = spray(ATTACKER, USERS[:3]) + spray(OTHER, USERS[3:6], start=5)
+    assert detect_password_spraying(events) == []
+
+
+def test_same_user_repeated_does_not_inflate_distinct_count():
+    users = ["admin", "admin", "test", "test", "oracle", "oracle", "ubuntu", "ubuntu"]
+    assert detect_password_spraying(spray(ATTACKER, users, step_seconds=5)) == []
+
+
+def test_spray_severity_escalates_with_more_users():
+    cfg = DetectionConfig(spray_users=4)
+    below = spray(ATTACKER, USERS[: SPRAY_HIGH_FACTOR * 4 - 1])
+    at_limit = spray(ATTACKER, USERS[: SPRAY_HIGH_FACTOR * 4])
+    assert detect_password_spraying(below, cfg)[0].severity == "medium"
+    assert detect_password_spraying(at_limit, cfg)[0].severity == "high"
+
+
+def test_spray_custom_k():
+    events = spray(ATTACKER, USERS[:3])
+    assert detect_password_spraying(events) == []
+    assert len(detect_password_spraying(events, DetectionConfig(spray_users=3))) == 1
+
+
+def test_a_sprayer_is_reported_by_both_spray_and_brute_force_rules():
+    findings = detect_all(spray(ATTACKER, USERS[:6]))
+    assert {f.rule_id for f in findings} == {"AUTH-BRUTE-001", "AUTH-SPRAY-001"}
+
+
+def test_two_spray_episodes_far_apart():
+    events = spray(ATTACKER, USERS[:5]) + spray(ATTACKER, USERS[:5], start=7200)
+    assert len(detect_password_spraying(events)) == 2

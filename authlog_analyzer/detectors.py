@@ -15,6 +15,7 @@ from typing import Iterable
 
 from .models import (
     BRUTE_FORCE,
+    PASSWORD_SPRAY,
     SEVERITIES,
     AuthEvent,
     EventKind,
@@ -24,6 +25,10 @@ from .models import (
 # A brute-force finding is raised to "high" when the burst is this many times
 # bigger than the configured threshold.
 BRUTE_FORCE_HIGH_FACTOR = 5
+
+# A spray finding is raised to "high" when it hits this many times more
+# distinct usernames than the configured minimum.
+SPRAY_HIGH_FACTOR = 2
 
 
 @dataclass(frozen=True)
@@ -129,11 +134,48 @@ def detect_brute_force(events: Iterable[AuthEvent], config: DetectionConfig | No
     return findings
 
 
+def detect_password_spraying(events: Iterable[AuthEvent], config: DetectionConfig | None = None) -> list[Finding]:
+    """AUTH-SPRAY-001: one IP failing against ``spray_users`` or more usernames in the window.
+
+    A sprayer normally also trips AUTH-BRUTE-001 because it is many failures
+    from one address. The two findings carry different ATT&CK techniques and
+    this one is the more specific.
+    """
+    config = config or DetectionConfig()
+    findings: list[Finding] = []
+    for ip, failures in _failures_by_ip(events).items():
+        for start, end in _find_episodes(failures, config.window, 1, config.spray_users):
+            episode = failures[start : end + 1]
+            names = _usernames(episode)
+            severity = "high" if len(names) >= SPRAY_HIGH_FACTOR * config.spray_users else "medium"
+            findings.append(
+                Finding(
+                    rule_id=PASSWORD_SPRAY.rule_id,
+                    rule_name=PASSWORD_SPRAY.name,
+                    severity=severity,
+                    source_ip=ip,
+                    usernames=names,
+                    first_seen=episode[0].timestamp,
+                    last_seen=episode[-1].timestamp,
+                    count=len(episode),
+                    technique_id=PASSWORD_SPRAY.technique_id,
+                    technique_name=PASSWORD_SPRAY.technique_name,
+                    detail=(
+                        f"{_plural(len(episode), 'failed login')} from {ip} across "
+                        f"{_plural(len(names), 'distinct username')} "
+                        f"(threshold: {config.spray_users} usernames in "
+                        f"{config.window_minutes:g} minutes)"
+                    ),
+                )
+            )
+    return findings
+
+
 def detect_all(events: Iterable[AuthEvent], config: DetectionConfig | None = None) -> list[Finding]:
     """Run every rule and return findings sorted by severity, then time."""
     config = config or DetectionConfig()
     events = list(events)
-    findings = detect_brute_force(events, config)
+    findings = detect_brute_force(events, config) + detect_password_spraying(events, config)
     order = {name: rank for rank, name in enumerate(SEVERITIES)}
     findings.sort(key=lambda f: (order[f.severity], f.first_seen, f.rule_id, f.source_ip))
     return findings
